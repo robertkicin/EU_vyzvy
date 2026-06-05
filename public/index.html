@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sledovač EU výziev – Slovenské ministerstvá</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
+    header { background: #fff; border-bottom: 1px solid #e5e5e0; padding: 1.25rem 2rem; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+    .logo { width: 42px; height: 42px; background: #e8f0fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    header h1 { font-size: 17px; font-weight: 600; }
+    header p { font-size: 13px; color: #666; margin-top: 2px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .card { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #333; }
+    .ministry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+    .ministry-tag { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1.5px solid #e0e0d8; border-radius: 8px; font-size: 12.5px; color: #555; cursor: pointer; background: #fafaf8; transition: all 0.15s; user-select: none; }
+    .ministry-tag:hover { border-color: #aaa; }
+    .ministry-tag.active { border-color: #4a80f0; background: #eef2fd; color: #1a4fd6; font-weight: 500; }
+    .ministry-tag .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; transition: background 0.15s; }
+    .ministry-tag.active .dot { background: #4a80f0; }
+    .scan-btn { width: 100%; padding: 13px; background: #1a4fd6; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.15s; margin-bottom: 1.25rem; }
+    .scan-btn:hover { background: #1540b8; }
+    .scan-btn:disabled { background: #9ab0e8; cursor: not-allowed; }
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status { display: none; padding: 12px 16px; border-radius: 10px; font-size: 13.5px; margin-bottom: 1.25rem; align-items: center; gap: 10px; }
+    .status.scanning { display: flex; background: #eef2fd; color: #1a4fd6; border: 1px solid #c5d3f8; }
+    .status.done { display: flex; background: #edf7ed; color: #1a6e1a; border: 1px solid #b5dbb5; }
+    .status.error { display: flex; background: #fdeeed; color: #b01a1a; border: 1px solid #f0c0bc; }
+    .status .spinner-s { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .results-header h2 { font-size: 15px; font-weight: 600; color: #333; }
+    .count-badge { background: #eef2fd; color: #1a4fd6; font-size: 12px; font-weight: 600; padding: 3px 11px; border-radius: 99px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1.25rem; }
+    .filter-btn { font-size: 12.5px; padding: 5px 13px; border: 1px solid #ddd; border-radius: 99px; background: #fff; color: #555; cursor: pointer; transition: all 0.12s; }
+    .filter-btn:hover { border-color: #aaa; }
+    .filter-btn.active { border-color: #4a80f0; background: #eef2fd; color: #1a4fd6; font-weight: 500; }
+    .vyzva-card { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 10px; transition: border-color 0.15s; }
+    .vyzva-card:hover { border-color: #b0b8d0; }
+    .vyzva-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .vyzva-title { font-size: 14.5px; font-weight: 600; color: #1a1a1a; line-height: 1.4; }
+    .vyzva-min-badge { font-size: 11px; font-weight: 500; padding: 4px 11px; border-radius: 99px; background: #f0f0ec; color: #555; white-space: nowrap; flex-shrink: 0; }
+    .vyzva-summary { font-size: 13.5px; color: #555; line-height: 1.65; margin-bottom: 12px; }
+    .vyzva-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+    .vyzva-meta-item { font-size: 12.5px; color: #888; display: flex; align-items: center; gap: 5px; }
+    .vyzva-link { font-size: 12.5px; color: #1a4fd6; text-decoration: none; display: flex; align-items: center; gap: 4px; margin-left: auto; }
+    .vyzva-link:hover { text-decoration: underline; }
+    .empty { text-align: center; padding: 4rem 1rem; color: #aaa; font-size: 14px; }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+    footer { text-align: center; padding: 2rem; font-size: 12px; color: #aaa; }
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      .ministry-grid { grid-template-columns: 1fr 1fr; }
+      header { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">🔭</div>
+  <div>
+    <h1>Sledovač EU výziev</h1>
+    <p>Automatické skenovanie slovenských ministerstiev pomocou AI</p>
+  </div>
+</header>
+<div class="container">
+  <div class="card">
+    <h2>Vyber ministerstvá na skenovanie</h2>
+    <div class="ministry-grid" id="ministryGrid"></div>
+  </div>
+  <button class="scan-btn" id="scanBtn" onclick="startScan()">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <div class="spinner" id="spinner"></div>
+    <span id="scanBtnText">Spustiť skenovanie</span>
+  </button>
+  <div class="status" id="statusBar">
+    <div class="spinner-s" id="statusSpinner"></div>
+    <span id="statusText"></span>
+  </div>
+  <div id="resultsSection" style="display:none">
+    <div class="results-header">
+      <h2>Nájdené výzvy</h2>
+      <span class="count-badge" id="countBadge">0</span>
+    </div>
+    <div class="filter-row" id="filterRow"></div>
+    <div id="vyzvaList"></div>
+  </div>
+</div>
+<footer>Sledovač EU výziev &nbsp;·&nbsp; Poháňaný Claude AI &nbsp;·&nbsp; Dáta zo stránok slovenských ministerstiev</footer>
+<script>
+const MINISTRIES = [
+  { id: 'mpsr',  name: 'Min. pôdohospodárstva',  url: 'https://www.mpsr.sk' },
+  { id: 'mhsr',  name: 'Min. hospodárstva',        url: 'https://www.mhsr.sk' },
+  { id: 'mfsr',  name: 'Min. financií',            url: 'https://www.mfsr.sk' },
+  { id: 'mirri', name: 'MIRRI SR',                 url: 'https://www.mirri.gov.sk' },
+  { id: 'mdsr',  name: 'Min. dopravy',             url: 'https://www.mindop.sk' },
+  { id: 'mzsr',  name: 'Min. zdravotníctva',       url: 'https://www.health.gov.sk' },
+  { id: 'msssr', name: 'Min. školstva',            url: 'https://www.minedu.sk' },
+  { id: 'mpsvr', name: 'Min. práce a soc. vecí',  url: 'https://www.employment.gov.sk' },
+  { id: 'mzpsr', name: 'Min. živ. prostredia',    url: 'https://www.minzp.sk' },
+  { id: 'mvsr',  name: 'Min. vnútra',             url: 'https://www.minv.sk' },
+];
+let selected = new Set(MINISTRIES.map(m => m.id));
+let allVyzvy = [];
+function renderMinistries() {
+  document.getElementById('ministryGrid').innerHTML = MINISTRIES.map(m => `
+    <div class="ministry-tag active" id="tag_${m.id}" onclick="toggleMinistry('${m.id}')">
+      <div class="dot"></div><span>${m.name}</span>
+    </div>
+  `).join('');
+}
+function toggleMinistry(id) {
+  if (selected.has(id)) { selected.delete(id); document.getElementById('tag_'+id).classList.remove('active'); }
+  else { selected.add(id); document.getElementById('tag_'+id).classList.add('active'); }
+}
+function setStatus(msg, type) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status ' + type;
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('statusSpinner').style.display = type === 'scanning' ? 'block' : 'none';
+}
+async function startScan() {
+  if (!selected.size) { alert('Vyber aspoň jedno ministerstvo.'); return; }
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('scanBtnText').textContent = 'Skenujem...';
+  document.getElementById('resultsSection').style.display = 'none';
+  allVyzvy = [];
+  const selectedMins = MINISTRIES.filter(m => selected.has(m.id));
+  setStatus(`Claude prehľadáva ${selectedMins.length} ministerstiev... (môže trvať 30–60 sekúnd)`, 'scanning');
+  try {
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ministries: selectedMins })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Chyba servera');
+    allVyzvy = data.vyzvy || [];
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('countBadge').textContent = allVyzvy.length;
+    if (allVyzvy.length) {
+      buildFilters();
+      renderVyzvy(allVyzvy);
+      setStatus(`✓ Skenovanie dokončené – nájdených ${allVyzvy.length} výziev`, 'done');
+    } else {
+      renderVyzvy([]);
+      setStatus('Skenovanie dokončené – žiadne výzvy nenájdené', 'done');
+    }
+  } catch (err) {
+    setStatus('Chyba: ' + err.message, 'error');
+  }
+  btn.disabled = false;
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('scanBtnText').textContent = 'Spustiť znova';
+}
+function buildFilters() {
+  const mins = [...new Set(allVyzvy.map(v => v.ministry))];
+  document.getElementById('filterRow').innerHTML =
+    `<button class="filter-btn active" onclick="filterBy('all',this)">Všetky (${allVyzvy.length})</button>` +
+    mins.map(m => {
+      const c = allVyzvy.filter(v => v.ministry === m).length;
+      return `<button class="filter-btn" onclick="filterBy('${m}',this)">${m} (${c})</button>`;
+    }).join('');
+}
+function filterBy(m, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const list = m === 'all' ? allVyzvy : allVyzvy.filter(v => v.ministry === m);
+  document.getElementById('countBadge').textContent = list.length;
+  renderVyzvy(list);
+}
+function renderVyzvy(vyzvy) {
+  const el = document.getElementById('vyzvaList');
+  if (!vyzvy.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">🔍</div>Žiadne výzvy nenájdené.</div>';
+    return;
+  }
+  el.innerHTML = vyzvy.map(v => `
+    <div class="vyzva-card">
+      <div class="vyzva-top">
+        <div class="vyzva-title">${esc(v.title||'–')}</div>
+        <div class="vyzva-min-badge">${esc(v.ministry||'')}</div>
+      </div>
+      <div class="vyzva-summary">${esc(v.summary||'')}</div>
+      <div class="vyzva-meta">
+        ${v.deadline?`<div class="vyzva-meta-item">📅 ${esc(v.deadline)}</div>`:''}
+        ${v.amount?`<div class="vyzva-meta-item">💶 ${esc(v.amount)}</div>`:''}
+        ${v.fund?`<div class="vyzva-meta-item">🏷 ${esc(v.fund)}</div>`:''}
+        ${v.url?`<a class="vyzva-link" href="${esc(v.url)}" target="_blank">Viac info ↗</a>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+renderMinistries();
+</script>
+</body>
+</html>
