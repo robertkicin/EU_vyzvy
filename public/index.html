@@ -268,4 +268,121 @@ const MINISTRIES = [
   { id: 'mdsr',  name: 'Ministerstvo dopravy SR',                             icon: '🚆', url: 'https://www.mindop.sk' },
   { id: 'mzsr',  name: 'Ministerstvo zdravotníctva SR',                       icon: '🏥', url: 'https://www.health.gov.sk' },
   { id: 'msssr', name: 'Ministerstvo školstva, vedy, výskumu a športu SR',   icon: '🎓', url: 'https://www.minedu.sk' },
-  { id: 'mpsvr', name: 'Ministerstvo práce, sociálnych vecí a rodiny SR',    icon: '👥
+  { id: 'mpsvr', name: 'Ministerstvo práce, sociálnych vecí a rodiny SR',    icon: '👥', url: 'https://www.employment.gov.sk' },
+  { id: 'mzpsr', name: 'Ministerstvo životného prostredia SR',               icon: '🌿', url: 'https://www.minzp.sk' },
+  { id: 'mvsr',  name: 'Ministerstvo vnútra SR',                             icon: '🏛', url: 'https://www.minv.sk' },
+];
+
+let selected = new Set(MINISTRIES.map(m => m.id));
+let allVyzvy = [];
+
+function renderMinistries() {
+  document.getElementById('ministryGrid').innerHTML = MINISTRIES.map(m => `
+    <div class="ministry-tag active" id="tag_${m.id}" onclick="toggleMinistry('${m.id}')">
+      <div class="min-icon">${m.icon}</div>
+      <span>${m.name}</span>
+    </div>
+  `).join('');
+}
+
+function toggleMinistry(id) {
+  if (selected.has(id)) { selected.delete(id); document.getElementById('tag_'+id).classList.remove('active'); }
+  else { selected.add(id); document.getElementById('tag_'+id).classList.add('active'); }
+}
+
+function setStatus(msg, type) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status ' + type;
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('stSpin').style.display = type === 'scanning' ? 'block' : 'none';
+}
+
+async function startScan() {
+  if (!selected.size) { alert('Vyber aspoň jedno ministerstvo.'); return; }
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('scanBtnText').textContent = 'Prebieha vyhľadávanie...';
+  document.getElementById('resultsSection').style.display = 'none';
+  allVyzvy = [];
+
+  const selectedMins = MINISTRIES.filter(m => selected.has(m.id));
+  setStatus(`Prehľadávam ${selectedMins.length} ministerstiev — môže trvať 30–60 sekúnd`, 'scanning');
+
+  try {
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ministries: selectedMins })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Chyba servera');
+    allVyzvy = data.vyzvy || [];
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('countBadge').textContent = allVyzvy.length;
+    if (allVyzvy.length) {
+      buildFilters();
+      renderVyzvy(allVyzvy);
+      setStatus(`Dokončené — nájdených ${allVyzvy.length} výziev`, 'done');
+    } else {
+      renderVyzvy([]);
+      setStatus('Vyhľadávanie dokončené — žiadne výzvy nenájdené', 'done');
+    }
+  } catch (err) {
+    setStatus('Chyba: ' + err.message, 'error');
+  }
+
+  btn.disabled = false;
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('scanBtnText').textContent = 'Vyhľadať znova';
+}
+
+function buildFilters() {
+  const mins = [...new Set(allVyzvy.map(v => v.ministry))];
+  document.getElementById('filterRow').innerHTML =
+    `<button class="filter-btn active" onclick="filterBy('all',this)">Všetky (${allVyzvy.length})</button>` +
+    mins.map(m => {
+      const c = allVyzvy.filter(v => v.ministry === m).length;
+      return `<button class="filter-btn" onclick="filterBy('${m}',this)">${m} (${c})</button>`;
+    }).join('');
+}
+
+function filterBy(m, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const list = m === 'all' ? allVyzvy : allVyzvy.filter(v => v.ministry === m);
+  document.getElementById('countBadge').textContent = list.length;
+  renderVyzvy(list);
+}
+
+function renderVyzvy(vyzvy) {
+  const el = document.getElementById('vyzvaList');
+  if (!vyzvy.length) {
+    el.innerHTML = '<div class="empty">Žiadne výzvy nenájdené.</div>';
+    return;
+  }
+  el.innerHTML = vyzvy.map(v => `
+    <div class="vyzva-card">
+      <div class="vyzva-top">
+        <div class="vyzva-title">${esc(v.title||'–')}</div>
+        <div class="vyzva-ministry">${esc(v.ministry||'')}</div>
+      </div>
+      <div class="vyzva-summary">${esc(v.summary||'')}</div>
+      <div class="vyzva-meta">
+        ${v.deadline?`<div class="meta-item"><span class="meta-key">Termín</span><span class="meta-val">${esc(v.deadline)}</span></div>`:''}
+        ${v.amount?`<div class="meta-item"><span class="meta-key">Suma</span><span class="meta-val">${esc(v.amount)}</span></div>`:''}
+        ${v.fund?`<div class="meta-item"><span class="meta-key">Fond</span><span class="meta-val">${esc(v.fund)}</span></div>`:''}
+        ${v.url?`<a class="vyzva-link" href="${esc(v.url)}" target="_blank">Detail →</a>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+renderMinistries();
+</script>
+</body>
+</html>
